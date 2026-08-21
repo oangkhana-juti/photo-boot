@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>INSTANT BOOTH — ตู้ถ่ายภาพ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#201F1D;
+    --ink-2:#2C2A27;
+    --paper:#F7F2E7;
+    --paper-2:#EFE7D6;
+    --amber:#FFC145;
+    --shutter:#D64545;
+    --shutter-dark:#B23636;
+    --sprocket:#57534E;
+    --mint:#6FBF9B;
+    --line: rgba(247,242,231,0.14);
+    --display: 'Archivo Black', sans-serif;
+    --body: 'Inter', sans-serif;
+    --mono: 'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:var(--ink);
+    color:var(--paper);
+    font-family:var(--body);
+    overflow:hidden;
+    -webkit-tap-highlight-color: transparent;
+    user-select:none;
+  }
+  #app{
+    position:relative;
+    width:100vw; height:100vh;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+  }
+
+  /* ---------- background texture ---------- */
+  #app::before{
+    content:"";
+    position:absolute; inset:0;
+    background-image: radial-gradient(circle at 1px 1px, rgba(247,242,231,0.05) 1px, transparent 0);
+    background-size: 22px 22px;
+    pointer-events:none;
+  }
+
+  /* ---------- top brand bar ---------- */
+  .brandbar{
+    position:absolute; top:0; left:0; right:0;
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 22px 32px;
+    z-index:5;
+  }
+  .wordmark{
+    font-family:var(--display);
+    font-size:20px;
+    letter-spacing:0.5px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .wordmark .dot{
+    width:10px; height:10px; border-radius:50%;
+    background:var(--shutter);
+    box-shadow:0 0 0 3px rgba(214,69,69,0.25);
+  }
+  .readout{
+    font-family:var(--mono);
+    font-size:12px;
+    color: rgba(247,242,231,0.55);
+    letter-spacing:1px;
+    display:flex; gap:18px;
+  }
+  .fs-btn{
+    background:transparent; border:1px solid var(--line); color:var(--paper);
+    border-radius:8px; padding:8px 10px; cursor:pointer; font-size:13px;
+    font-family:var(--mono);
+  }
+
+  /* ================= WELCOME SCREEN ================= */
+  #welcome{
+    position:relative; z-index:2;
+    display:flex; flex-direction:column; align-items:center; gap:26px;
+    text-align:center; padding: 0 24px;
+  }
+  #welcome .tagline{
+    font-family:var(--mono);
+    font-size:13px;
+    letter-spacing:3px;
+    color: var(--amber);
+    text-transform:uppercase;
+  }
+  #welcome h1{
+    font-family:var(--display);
+    font-size:clamp(40px, 8vw, 84px);
+    margin:0;
+    line-height:1;
+  }
+  #welcome p.sub{
+    max-width: 480px;
+    color: rgba(247,242,231,0.6);
+    font-size:15px;
+    line-height:1.6;
+    margin:0;
+  }
+  .lens-icon{
+    width:120px; height:120px; border-radius:50%;
+    border: 3px solid var(--paper);
+    display:flex; align-items:center; justify-content:center;
+    position:relative;
+    background: radial-gradient(circle at 35% 30%, #3a3835, var(--ink-2) 70%);
+  }
+  .lens-icon::before{
+    content:""; width:56px; height:56px; border-radius:50%;
+    background: radial-gradient(circle at 40% 35%, #6d95c9, #1a2230 70%);
+    box-shadow: 0 0 0 6px rgba(255,193,69,0.15);
+  }
+  .start-btn{
+    margin-top:6px;
+    font-family:var(--display);
+    font-size:16px;
+    background:var(--shutter);
+    color:var(--paper);
+    border:none;
+    border-radius:100px;
+    padding:20px 44px;
+    cursor:pointer;
+    box-shadow: 0 8px 0 var(--shutter-dark);
+    transition: transform .08s ease;
+    letter-spacing: 0.5px;
+  }
+  .start-btn:active{ transform: translateY(6px); box-shadow:0 2px 0 var(--shutter-dark); }
+  #cam-error{
+    color:#ff9d9d; font-family:var(--mono); font-size:13px; max-width:420px;
+    display:none;
+  }
+
+  /* ================= BOOTH SCREEN ================= */
+  #booth{
+    display:none;
+    position:relative; z-index:2;
+    width:100%; height:100%;
+    flex-direction:column; align-items:center; justify-content:center;
+    padding: 100px 20px 24px;
+  }
+  .camera-body{
+    position:relative;
+    background: var(--ink-2);
+    border-radius: 28px;
+    padding: 18px;
+    box-shadow: 0 30px 60px rgba(0,0,0,0.45), inset 0 0 0 1px var(--line);
+    display:flex; flex-direction:column; gap:16px;
+    width: min(560px, 90vw);
+  }
+  .sprockets{
+    position:absolute; top:0; bottom:0; width:18px;
+    display:flex; flex-direction:column; justify-content:space-evenly; align-items:center;
+  }
+  .sprockets.left{ left:-9px; }
+  .sprockets.right{ right:-9px; }
+  .sprockets span{
+    width:10px; height:10px; border-radius:50%;
+    background: var(--sprocket);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.4);
+  }
+  .viewfinder{
+    position:relative;
+    aspect-ratio: 1/1;
+    width:100%;
+    background:#000;
+    border-radius:16px;
+    overflow:hidden;
+    box-shadow: inset 0 0 0 2px rgba(247,242,231,0.08);
+  }
+  .viewfinder video{
+    width:100%; height:100%; object-fit:cover;
+    display:block;
+  }
+  .corner{
+    position:absolute; width:26px; height:26px;
+    border-color: var(--amber);
+    opacity:0.85;
+  }
+  .corner.tl{ top:12px; left:12px; border-top:3px solid; border-left:3px solid; }
+  .corner.tr{ top:12px; right:12px; border-top:3px solid; border-right:3px solid; }
+  .corner.bl{ bottom:12px; left:12px; border-bottom:3px solid; border-left:3px solid; }
+  .corner.br{ bottom:12px; right:12px; border-bottom:3px solid; border-right:3px solid; }
+
+  .vf-tag{
+    position:absolute; top:12px; left:50%; transform:translateX(-50%);
+    font-family:var(--mono); font-size:11px; letter-spacing:1px;
+    background: rgba(0,0,0,0.4); padding:4px 10px; border-radius: 20px;
+    color: var(--paper);
+  }
+  .shot-counter{
+    position:absolute; bottom:12px; right:12px;
+    font-family:var(--mono); font-size:12px;
+    background: rgba(0,0,0,0.45); padding:5px 10px; border-radius:8px;
+    color: var(--amber); display:none;
+  }
+
+  .countdown{
+    position:absolute; inset:0;
+    display:none; align-items:center; justify-content:center;
+    background: rgba(0,0,0,0.25);
+  }
+  .countdown span{
+    font-family:var(--display);
+    font-size: 140px;
+    color: var(--paper);
+    text-shadow: 0 0 40px rgba(255,193,69,0.6);
+    animation: pop 1s ease;
+  }
+  @keyframes pop{
+    0%{ transform:scale(0.4); opacity:0; }
+    30%{ transform:scale(1.08); opacity:1; }
+    100%{ transform:scale(1); opacity:1; }
+  }
+  .flash{
+    position:absolute; inset:0; background:white; opacity:0;
+    pointer-events:none;
+  }
+  .flash.go{ animation: flashpop 320ms ease; }
+  @keyframes flashpop{
+    0%{opacity:0;} 12%{opacity:1;} 100%{opacity:0;}
+  }
+
+  /* controls row */
+  .controls{
+    display:flex; flex-direction:column; gap:12px;
+  }
+  .row-label{
+    font-family:var(--mono); font-size:11px; letter-spacing:1.5px;
+    color: rgba(247,242,231,0.45); text-transform:uppercase;
+    margin: 2px 2px -2px;
+  }
+  .chip-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .chip{
+    font-family:var(--body); font-weight:600; font-size:13px;
+    background: transparent; color: var(--paper);
+    border:1px solid var(--line); border-radius: 100px;
+    padding: 9px 16px; cursor:pointer;
+  }
+  .chip.active{
+    background: var(--amber); color: var(--ink); border-color:var(--amber);
+  }
+
+  .bottom-row{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-top:4px;
+  }
+  .icon-btn{
+    width:52px; height:52px; border-radius:50%;
+    background: transparent; border:1px solid var(--line); color:var(--paper);
+    cursor:pointer; font-size:20px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .shutter-btn{
+    width:78px; height:78px; border-radius:50%;
+    background: var(--shutter);
+    border: 5px solid var(--paper);
+    box-shadow: 0 0 0 3px var(--shutter);
+    cursor:pointer;
+  }
+  .shutter-btn:active{ transform: scale(0.94); }
+  .shutter-btn:disabled{ opacity:0.4; cursor:default; }
+
+  /* ================= RESULT SCREEN ================= */
+  #result{
+    display:none;
+    position:relative; z-index:2;
+    width:100%; height:100%;
+    flex-direction:column; align-items:center; justify-content:center;
+    gap:22px;
+    padding: 100px 20px 30px;
+  }
+  .film-wrap{
+    position:relative;
+    max-height: 62vh;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .film-wrap img{
+    max-height:62vh;
+    max-width: 84vw;
+    border-radius: 6px;
+    box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+    filter: blur(10px) brightness(0.35) contrast(0.6) saturate(0.2);
+    transition: filter 2.2s ease;
+  }
+  .film-wrap img.developed{
+    filter: none;
+  }
+  .developing-tag{
+    position:absolute; bottom: -30px; left:50%; transform:translateX(-50%);
+    font-family:var(--mono); font-size:11px; letter-spacing:1.5px;
+    color: rgba(247,242,231,0.5);
+  }
+  .result-actions{
+    display:flex; gap:12px; flex-wrap:wrap; justify-content:center;
+  }
+  .btn{
+    font-family:var(--body); font-weight:700; font-size:14px;
+    border-radius:100px; padding:14px 26px; cursor:pointer; border:none;
+  }
+  .btn.primary{ background: var(--mint); color:#12271e; }
+  .btn.secondary{ background: transparent; color:var(--paper); border:1px solid var(--line); }
+  .btn.ghost{ background: transparent; color: rgba(247,242,231,0.55); border:1px solid transparent; }
+
+  @media (max-width: 480px){
+    .camera-body{ padding:14px; }
+    .countdown span{ font-size:96px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <div class="brandbar">
+    <div class="wordmark"><span class="dot"></span>INSTANT&nbsp;BOOTH</div>
+    <div class="readout" id="topReadout">
+      <span id="modeReadout">STRIP·4</span>
+      <span id="filterReadout">NORMAL</span>
+    </div>
+    <button class="fs-btn" id="fsBtn">⛶ เต็มจอ</button>
+  </div>
+
+  <!-- WELCOME -->
+  <div id="welcome">
+    <div class="lens-icon"></div>
+    <div class="tagline">ตู้ถ่ายภาพดิจิทัล</div>
+    <h1>ยิ้มเลย!</h1>
+    <p class="sub">แตะเพื่อเปิดกล้อง เลือกฟิลเตอร์ที่ชอบ แล้วนับถอยหลังถ่ายภาพได้เลย เสร็จแล้วดาวน์โหลดกลับบ้านได้ทันที</p>
+    <button class="start-btn" id="startBtn">เปิดกล้อง</button>
+    <div id="cam-error"></div>
+  </div>
+
+  <!-- BOOTH -->
+  <div id="booth">
+    <div class="camera-body">
+      <div class="sprockets left"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="sprockets right"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+
+      <div class="viewfinder" id="viewfinder">
+        <video id="video" autoplay playsinline muted></video>
+        <div class="corner tl"></div><div class="corner tr"></div>
+        <div class="corner bl"></div><div class="corner br"></div>
+        <div class="vf-tag" id="vfTag">พร้อมถ่าย</div>
+        <div class="shot-counter" id="shotCounter"></div>
+        <div class="countdown" id="countdown"><span id="countNum">3</span></div>
+        <div class="flash" id="flash"></div>
+      </div>
+
+      <div class="controls">
+        <div>
+          <div class="row-label">รูปแบบ</div>
+          <div class="chip-row" id="modeRow">
+            <button class="chip" data-mode="1">ภาพเดี่ยว</button>
+            <button class="chip active" data-mode="4">สตริป 4 ภาพ</button>
+          </div>
+        </div>
+        <div>
+          <div class="row-label">ฟิลเตอร์</div>
+          <div class="chip-row" id="filterRow">
+            <button class="chip active" data-filter="none">ปกติ</button>
+            <button class="chip" data-filter="grayscale(1) contrast(1.1)">ขาวดำ</button>
+            <button class="chip" data-filter="sepia(0.75) contrast(1.05) brightness(1.05)">ซีเปีย</button>
+            <button class="chip" data-filter="sepia(0.25) contrast(1.2) saturate(1.35)">วินเทจ</button>
+            <button class="chip" data-filter="saturate(1.6) contrast(1.15)">วิวิด</button>
+          </div>
+        </div>
+        <div>
+          <div class="row-label">ตั้งเวลานับถอยหลัง</div>
+          <div class="chip-row" id="timerRow">
+            <button class="chip" data-timer="3">3 วิ</button>
+            <button class="chip active" data-timer="5">5 วิ</button>
+            <button class="chip" data-timer="10">10 วิ</button>
+          </div>
+        </div>
+
+        <div class="bottom-row">
+          <button class="icon-btn" id="flipBtn" title="สลับกล้อง">⟳</button>
+          <button class="shutter-btn" id="shutterBtn" title="ถ่ายภาพ"></button>
+          <button class="icon-btn" id="homeBtn" title="กลับหน้าแรก">✕</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div id="result">
+    <div class="film-wrap">
+      <img id="resultImg" alt="ผลลัพธ์ภาพถ่าย">
+      <div class="developing-tag" id="devTag">กำลังล้างฟิล์ม…</div>
+    </div>
+    <div class="result-actions">
+      <button class="btn primary" id="downloadBtn">⬇ ดาวน์โหลดภาพ</button>
+      <button class="btn secondary" id="retakeBtn">↺ ถ่ายใหม่</button>
+      <button class="btn ghost" id="doneBtn">เสร็จแล้ว — หน้าแรก</button>
+    </div>
+  </div>
+
+</div>
+
+<canvas id="workCanvas" style="display:none;"></canvas>
+
+<script>
+(function(){
+  const welcome = document.getElementById('welcome');
+  const booth = document.getElementById('booth');
+  const resultScreen = document.getElementById('result');
+  const video = document.getElementById('video');
+  const startBtn = document.getElementById('startBtn');
+  const camError = document.getElementById('cam-error');
+  const shutterBtn = document.getElementById('shutterBtn');
+  const flipBtn = document.getElementById('flipBtn');
+  const homeBtn = document.getElementById('homeBtn');
+  const countdownEl = document.getElementById('countdown');
+  const countNum = document.getElementById('countNum');
+  const flashEl = document.getElementById('flash');
+  const vfTag = document.getElementById('vfTag');
+  const shotCounter = document.getElementById('shotCounter');
+  const modeRow = document.getElementById('modeRow');
+  const filterRow = document.getElementById('filterRow');
+  const timerRow = document.getElementById('timerRow');
+  const modeReadout = document.getElementById('modeReadout');
+  const filterReadout = document.getElementById('filterReadout');
+  const resultImg = document.getElementById('resultImg');
+  const devTag = document.getElementById('devTag');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const retakeBtn = document.getElementById('retakeBtn');
+  const doneBtn = document.getElementById('doneBtn');
+  const fsBtn = document.getElementById('fsBtn');
+
+  let stream = null;
+  let facingMode = 'user';
+  let currentMode = 4;
+  let currentFilter = 'none';
+  let currentFilterLabel = 'ปกติ';
+  let currentTimer = 5;
+  let busy = false;
+
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+
+  // ---------- camera ----------
+  async function startCamera(){
+    try{
+      if(stream){ stream.getTracks().forEach(t=>t.stop()); }
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facingMode, width:{ideal:1280}, height:{ideal:1280} },
+        audio: false
+      });
+      video.srcObject = stream;
+      video.style.transform = facingMode === 'user' ? 'scaleX(-1)' : 'none';
+      camError.style.display = 'none';
+      return true;
+    }catch(err){
+      camError.style.display = 'block';
+      camError.textContent = 'ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตการใช้กล้องในเบราว์เซอร์ แล้วลองอีกครั้ง';
+      return false;
+    }
+  }
+
+  startBtn.addEventListener('click', async () => {
+    startBtn.textContent = 'กำลังเปิดกล้อง…';
+    const ok = await startCamera();
+    if(ok){
+      welcome.style.display = 'none';
+      booth.style.display = 'flex';
+    }
+    startBtn.textContent = 'เปิดกล้อง';
+  });
+
+  flipBtn.addEventListener('click', async () => {
+    if(busy) return;
+    facingMode = facingMode === 'user' ? 'environment' : 'user';
+    await startCamera();
+  });
+
+  homeBtn.addEventListener('click', () => {
+    if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+    booth.style.display = 'none';
+    welcome.style.display = 'flex';
+  });
+
+  fsBtn.addEventListener('click', () => {
+    if(!document.fullscreenElement){
+      document.documentElement.requestFullscreen().catch(()=>{});
+    } else {
+      document.exitFullscreen().catch(()=>{});
+    }
+  });
+
+  // ---------- chip selectors ----------
+  modeRow.addEventListener('click', e => {
+    const btn = e.target.closest('.chip'); if(!btn || busy) return;
+    [...modeRow.children].forEach(c=>c.classList.remove('active'));
+    btn.classList.add('active');
+    currentMode = parseInt(btn.dataset.mode, 10);
+    modeReadout.textContent = currentMode === 1 ? 'SINGLE' : 'STRIP·4';
+  });
+
+  filterRow.addEventListener('click', e => {
+    const btn = e.target.closest('.chip'); if(!btn || busy) return;
+    [...filterRow.children].forEach(c=>c.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    currentFilterLabel = btn.textContent.trim();
+    video.style.filter = currentFilter;
+    filterReadout.textContent = currentFilterLabel.toUpperCase();
+  });
+
+  timerRow.addEventListener('click', e => {
+    const btn = e.target.closest('.chip'); if(!btn || busy) return;
+    [...timerRow.children].forEach(c=>c.classList.remove('active'));
+    btn.classList.add('active');
+    currentTimer = parseInt(btn.dataset.timer, 10);
+  });
+
+  // ---------- capture ----------
+  function captureSquare(outSize){
+    const vw = video.videoWidth, vh = video.videoHeight;
+    const size = Math.min(vw, vh);
+    const sx = (vw - size) / 2, sy = (vh - size) / 2;
+    const c = document.createElement('canvas');
+    c.width = outSize; c.height = outSize;
+    const ctx = c.getContext('2d');
+    ctx.filter = currentFilter;
+    ctx.save();
+    if(facingMode === 'user'){
+      ctx.translate(outSize, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(video, sx, sy, size, size, 0, 0, outSize, outSize);
+    ctx.restore();
+    return c;
+  }
+
+  async function runCountdown(){
+    countdownEl.style.display = 'flex';
+    for(let n = currentTimer; n >= 1; n--){
+      countNum.textContent = n;
+      countNum.style.animation = 'none';
+      void countNum.offsetWidth;
+      countNum.style.animation = 'pop 1s ease';
+      await wait(1000);
+    }
+    countdownEl.style.display = 'none';
+  }
+
+  async function flashCapture(){
+    flashEl.classList.remove('go');
+    void flashEl.offsetWidth;
+    flashEl.classList.add('go');
+    await wait(140);
+  }
+
+  function fmtDate(){
+    const d = new Date();
+    const pad = n => String(n).padStart(2,'0');
+    return `${pad(d.getDate())}·${pad(d.getMonth()+1)}·${d.getFullYear()}`;
+  }
+
+  async function buildComposite(shots){
+    await document.fonts.ready;
+    const photoSize = 640;
+    const pad = 40;
+    const gap = 22;
+    const captionH = 110;
+    const n = shots.length;
+    const width = photoSize + pad*2;
+    const height = n===1
+      ? photoSize + pad*2 + captionH
+      : (photoSize*n) + gap*(n-1) + pad*2 + captionH;
+
+    const canvas = document.getElementById('workCanvas');
+    canvas.width = width; canvas.height = height;
+    const ctx = canvas.getContext('2d');
+
+    // paper background
+    ctx.fillStyle = '#F7F2E7';
+    ctx.fillRect(0,0,width,height);
+
+    // photos
+    shots.forEach((shot, i) => {
+      const y = pad + i*(photoSize+gap);
+      ctx.drawImage(shot, pad, y, photoSize, photoSize);
+      ctx.strokeStyle = 'rgba(32,31,29,0.08)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(pad, y, photoSize, photoSize);
+      if(i < n-1){
+        // perforation dots between frames
+        const dotY = y + photoSize + gap/2;
+        ctx.fillStyle = '#d8cfb8';
+        for(let x = pad+10; x < width-pad; x += 16){
+          ctx.beginPath();
+          ctx.arc(x, dotY, 2.2, 0, Math.PI*2);
+          ctx.fill();
+        }
+      }
+    });
+
+    // caption strip
+    const capY = height - captionH;
+    ctx.fillStyle = '#F7F2E7';
+    ctx.fillRect(0, capY, width, captionH);
+    ctx.strokeStyle = 'rgba(32,31,29,0.12)';
+    ctx.beginPath();
+    ctx.moveTo(pad, capY+18); ctx.lineTo(width-pad, capY+18);
+    ctx.stroke();
+
+    ctx.fillStyle = '#201F1D';
+    ctx.font = '700 22px Archivo Black';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('INSTANT BOOTH', pad, capY + 58);
+
+    ctx.fillStyle = '#D64545';
+    ctx.font = '600 18px "IBM Plex Mono"';
+    const dateStr = fmtDate();
+    const dw = ctx.measureText(dateStr).width;
+    ctx.fillText(dateStr, width - pad - dw, capY + 58);
+
+    ctx.fillStyle = 'rgba(32,31,29,0.5)';
+    ctx.font = '500 13px "IBM Plex Mono"';
+    ctx.fillText(currentFilterLabel.toUpperCase() + ' · FILM', pad, capY + 84);
+
+    return canvas.toDataURL('image/png');
+  }
+
+  async function runSession(){
+    if(busy) return;
+    busy = true;
+    shutterBtn.disabled = true;
+    [modeRow, filterRow, timerRow].forEach(r => r.style.pointerEvents = 'none');
+    flipBtn.style.visibility = 'hidden';
+
+    const shots = [];
+    if(currentMode > 1){
+      shotCounter.style.display = 'block';
+    }
+
+    for(let i=0; i<currentMode; i++){
+      vfTag.textContent = currentMode > 1 ? `ภาพที่ ${i+1} จาก ${currentMode}` : 'เตรียมตัว';
+      shotCounter.textContent = `${i+1}/${currentMode}`;
+      await runCountdown();
+      await flashCapture();
+      shots.push(captureSquare(640));
+      await wait(350);
+    }
+
+    vfTag.textContent = 'พร้อมถ่าย';
+    shotCounter.style.display = 'none';
+
+    const dataUrl = await buildComposite(shots);
+    resultImg.classList.remove('developed');
+    resultImg.src = dataUrl;
+    booth.style.display = 'none';
+    resultScreen.style.display = 'flex';
+    devTag.textContent = 'กำลังล้างฟิล์ม…';
+
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        resultImg.classList.add('developed');
+        devTag.textContent = 'ล้างฟิล์มเสร็จแล้ว';
+      }, 150);
+    });
+
+    downloadBtn.onclick = () => {
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `instant-booth-${Date.now()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    };
+
+    busy = false;
+    shutterBtn.disabled = false;
+    [modeRow, filterRow, timerRow].forEach(r => r.style.pointerEvents = 'auto');
+    flipBtn.style.visibility = 'visible';
+  }
+
+  shutterBtn.addEventListener('click', runSession);
+
+  retakeBtn.addEventListener('click', () => {
+    resultScreen.style.display = 'none';
+    booth.style.display = 'flex';
+  });
+
+  doneBtn.addEventListener('click', () => {
+    resultScreen.style.display = 'none';
+    if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+    welcome.style.display = 'flex';
+  });
+
+})();
+</script>
+
+</body>
+</html>
